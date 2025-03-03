@@ -7,7 +7,7 @@ locals {
 }
 
 data "aws_availability_zones" "available" {
-  state = "available" 
+  state = "available"
 }
 
 # Vpc part
@@ -31,7 +31,7 @@ resource "aws_internet_gateway" "igw" {
 #     cidr_block = "10.1.0.0/24"
 
 #     tags = local.default_tags
-  
+
 # }
 
 # resource "aws_vpc_peering_connection" "peer" {
@@ -73,8 +73,8 @@ resource "aws_subnet" "private" {
 }
 
 resource "aws_network_acl" "main" {
-    vpc_id = aws_vpc.main.id
-    tags   = merge(var.default_tags, { Name = "main-acl" })
+  vpc_id = aws_vpc.main.id
+  tags   = merge(var.default_tags, { Name = "main-acl" })
 }
 
 resource "aws_network_acl_rule" "ftp_in" {
@@ -122,19 +122,19 @@ resource "aws_network_acl_rule" "http_in" {
 }
 
 resource "aws_network_acl_rule" "outbound" {
-    network_acl_id = aws_network_acl.main.id
-    rule_number    = 100
-    egress         = true
-    protocol       = -1
-    rule_action    = "allow"
-    cidr_block     = "0.0.0.0/0"
-    from_port      = 0
-    to_port        = 0
+  network_acl_id = aws_network_acl.main.id
+  rule_number    = 100
+  egress         = true
+  protocol       = -1
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 0
+  to_port        = 0
 }
 
 resource "aws_network_acl_association" "public" {
   network_acl_id = aws_network_acl.main.id
-  subnet_id = aws_subnet.public.id
+  subnet_id      = aws_subnet.public.id
 }
 
 resource "aws_network_acl_association" "private" {
@@ -142,7 +142,7 @@ resource "aws_network_acl_association" "private" {
   network_acl_id = aws_network_acl.main.id
   subnet_id      = aws_subnet.private[count.index].id
 }
-  
+
 # Ec2 part
 
 data "aws_ami" "ubuntu" {
