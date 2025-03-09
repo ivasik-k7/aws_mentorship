@@ -3,11 +3,6 @@ variable "region" {
   description = "AWS region to deploy resources"
 }
 
-variable "vpc_cidr" {
-  default     = "10.0.0.0/16"
-  description = "CIDR block for the main VPC"
-}
-
 variable "default_tags" {
   default = {
     owner   = "Ivan Kovtun"
