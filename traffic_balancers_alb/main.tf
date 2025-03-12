@@ -54,89 +54,41 @@ data "aws_key_pair" "primary" {
   key_name = "Primary"
 }
 
+
+
 # ******** VPC ********
 
-resource "aws_vpc" "demo" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
-  enable_dns_support   = true
+# Cost Breakdown:
+# VPC: Free (AWS does not charge for creating a VPC).
+# Subnets: Free (No additional cost for subnets).
+# Internet Gateway: Free (No charge for creation or attachment to a VPC).
+# Route Tables: Free (Included with VPC).
+# NAT Gateway: $0 (Disabled with enable_nat_gateway = false).
+# VPC Flow Logs: $0 (Disabled with enable_flow_logs = false).
 
-  tags = merge(var.default_tags, {
-    Name = "Demo VPC"
-  })
-}
+module "vpc" {
+  source = "../modules/vpc"
 
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.demo.id
+  availability_zones   = data.aws_availability_zones.available.names
+  public_subnet_cidrs  = ["10.0.2.0/24"]
+  private_subnet_cidrs = ["10.0.3.0/24", "10.0.4.0/24"]
+  vpc_cidr             = "10.0.0.0/16"
 
-  tags = merge(var.default_tags, {
-    Name = "Demo IGW"
-  })
-}
+  project_name = "alb-demo"
+  environment  = "dev"
 
-resource "aws_subnet" "private" {
-  vpc_id = aws_vpc.demo.id
+  enable_nat_gateway = false
+  enable_flow_logs   = false
 
-  cidr_block              = "10.0.1.0/24"
-  map_public_ip_on_launch = false
-
-  availability_zone = data.aws_availability_zones.available.names[0]
-
-  tags = merge(var.default_tags, {
-    Name = "Private Subnet"
-  })
-}
-
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.demo.id
-
-  tags = merge(var.default_tags, {
-    Name = "Private Route Table"
-  })
-}
-
-resource "aws_subnet" "public" {
-  vpc_id = aws_vpc.demo.id
-
-  cidr_block              = "10.0.2.0/24"
-  map_public_ip_on_launch = true
-  availability_zone       = data.aws_availability_zones.available.names[1]
-
-
-  tags = merge(var.default_tags, {
-    Name = "Public Subnet"
-  })
-}
-
-resource "aws_route_table_association" "private" {
-  subnet_id      = aws_subnet.private.id
-  route_table_id = aws_route_table.private.id
+  default_tags = var.default_tags
 }
 
 
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.demo.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
-
-  tags = merge(var.default_tags, {
-    Name = "Public Route Table"
-  })
-}
-
-
-resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id
-  route_table_id = aws_route_table.public.id
-}
 
 # ******** SG ********
 
 resource "aws_security_group" "web" {
-  vpc_id      = aws_vpc.demo.id
+  vpc_id      = module.vpc.vpc_id
   name        = "demo-mentorship-sg"
   description = "Security group for demo mentorship"
 
@@ -257,152 +209,36 @@ resource "aws_security_group" "web" {
 
 # ******** EC2 ********
 
-resource "aws_instance" "amazon_linux" {
-  ami           = data.aws_ami.amazon_linux.id
-  instance_type = "t2.micro"
 
-  security_groups             = [aws_security_group.web.id]
-  subnet_id                   = aws_subnet.public.id
-  associate_public_ip_address = true
+module "ubuntu_instance" {
+  source        = "../modules/ec2"
+  instance_type = "t2.micro"
+  ami_id        = data.aws_ami.ubuntu.id
+
+  associate_public_ip = true
+  subnet_ids          = module.vpc.public_subnet_ids
+  security_group_ids  = [aws_security_group.web.id]
 
   key_name = data.aws_key_pair.primary.key_name
 
-  user_data = <<-EOF
-    #!/bin/bash
-    yum update -y
-    yum install -y httpd
-    systemctl start httpd
-    systemctl enable httpd
+  environment  = "dev"
+  project_name = "alb-demo"
 
-    # Burger-Themed Landing Page
-    cat << 'HTML' > /var/www/html/index.html
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Burger Bliss - Amazon Linux</title>
-        <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body {
-                font-family: 'Helvetica', sans-serif;
-                background: linear-gradient(135deg, #00cc99, #33ccff);
-                color: #333;
-                line-height: 1.6;
-            }
-            header {
-                background: rgba(255, 255, 255, 0.9);
-                color: #333;
-                padding: 20px;
-                text-align: center;
-                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            }
-            header h1 {
-                font-size: 2.5em;
-                text-transform: uppercase;
-                letter-spacing: 2px;
-            }
-            .container {
-                max-width: 1200px;
-                margin: 40px auto;
-                padding: 20px;
-                display: flex;
-                flex-wrap: wrap;
-                gap: 20px;
-                justify-content: center;
-            }
-            .burger-card {
-                background: white;
-                border-radius: 15px;
-                padding: 20px;
-                width: 300px;
-                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-                text-align: center;
-                transition: transform 0.3s ease;
-            }
-            .burger-card:hover {
-                transform: translateY(-10px);
-            }
-            .burger-card img {
-                width: 100%;
-                border-radius: 10px;
-            }
-            .burger-card h2 {
-                font-size: 1.5em;
-                margin: 10px 0;
-                color: #00cc99;
-            }
-            .burger-card p {
-                font-size: 1em;
-                color: #666;
-            }
-            footer {
-                background: rgba(255, 255, 255, 0.9);
-                color: #333;
-                text-align: center;
-                padding: 15px;
-                position: fixed;
-                bottom: 0;
-                width: 100%;
-                font-size: 0.9em;
-            }
-            footer a {
-                color: #33ccff;
-                text-decoration: none;
-            }
-        </style>
-    </head>
-    <body>
-        <header>
-            <h1>Burger Bliss - Amazon Linux</h1>
-        </header>
-        <div class="container">
-            <div class="burger-card">
-                <img src="https://via.placeholder.com/280x180.png?text=Bacon+Burger" alt="Bacon Burger">
-                <h2>Bacon Burger</h2>
-                <p>Crispy bacon, cheddar, and smoky BBQ sauce.</p>
-            </div>
-            <div class="burger-card">
-                <img src="https://via.placeholder.com/280x180.png?text=Mushroom+Burger" alt="Mushroom Burger">
-                <h2>Mushroom Burger</h2>
-                <p>Sautéed mushrooms with Swiss cheese.</p>
-            </div>
-            <div class="burger-card">
-                <img src="https://via.placeholder.com/280x180.png?text=Double+Burger" alt="Double Burger">
-                <h2>Double Burger</h2>
-                <p>Two patties, double cheese, ultimate satisfaction.</p>
-            </div>
-        </div>
-        <footer>
-            <p>Developed by <a href="https://github.com/ivasik-k7" target="_blank">Ivan Kovtun</a> &copy; 2025</p>
-        </footer>
-    </body>
-    </html>
-    HTML
+  instance_count     = 2
+  enable_autoscaling = false
 
-    # Install Node.js and WebSocket Server
-    curl -sL https://rpm.nodesource.com/setup_16.x | bash -
-    yum install -y nodejs
-    npm install -g ws
-    echo 'const WebSocket = require("ws"); const wss = new WebSocket.Server({ port: 8080 }); wss.on("connection", ws => { ws.on("message", msg => ws.send("Echo from Amazon Linux: " + msg)); });' > /home/ec2-user/server.js
-    node /home/ec2-user/server.js &
-    EOF
 
-  tags = merge(var.default_tags, {
-    "Name"        = "amazon-linux-alb-test-server"
-    "Description" = "Amazon Linux instance with burger-themed landing page"
-  })
-}
+  # ebs_volume_size    = 4
+  # ebs_volume_type    = "gp2"
 
-resource "aws_instance" "ubuntu" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "t2.micro"
+  # For ASG:
+  # min_size          = 1
+  # max_size          = 4
+  # desired_capacity  = 2
+  # target_group_arns = [aws_lb_target_group.web.arn]
+  # health_check_type = "ELB"
 
-  security_groups             = [aws_security_group.web.id]
-  subnet_id                   = aws_subnet.public.id
-  associate_public_ip_address = true
-
-  key_name = data.aws_key_pair.primary.key_name
+  default_tags = var.default_tags
 
   user_data = <<-EOF
     #!/bin/bash
@@ -499,7 +335,7 @@ resource "aws_instance" "ubuntu" {
         <div class="container">
             <p>🚀 Cloud Engineer | DevOps | Gen AI Specialist | Automation Expert</p>
             <p class="tech-list">🔧 Expertise: <span class="highlight">AWS, Azure, VMware, PowerShell, Bash, Python, Kubernetes, Terraform</span></p>
-            
+
             <div class="console" id="console">
                 <p>> Welcome to my cloud-powered AWS server!</p>
             </div>
@@ -548,11 +384,6 @@ resource "aws_instance" "ubuntu" {
 
     nohup node /home/ubuntu/server.js > /dev/null 2>&1 &
   EOF
-
-  tags = merge(var.default_tags, {
-    "Name"        = "ubuntu-alb-test-server"
-    "Description" = "Ubuntu instance with burger-themed landing page"
-  })
 }
 
 
@@ -563,7 +394,7 @@ resource "aws_alb" "public_app" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.web.id]
-  subnets            = [aws_subnet.public.id]
+  subnets            = [module.vpc.public_subnet_ids[0]]
 
   enable_deletion_protection = true
 }
@@ -573,7 +404,7 @@ resource "aws_lb_target_group" "web" {
   port     = 80
   protocol = "HTTP"
 
-  vpc_id = aws_vpc.demo.id
+  vpc_id = module.vpc.vpc_id
 }
 
 resource "aws_lb_target_group" "web_sticky" {
@@ -581,7 +412,7 @@ resource "aws_lb_target_group" "web_sticky" {
   port     = 80
   protocol = "HTTP"
 
-  vpc_id = aws_vpc.demo.id
+  vpc_id = module.vpc.vpc_id
 
   stickiness {
     type            = "lb_cookie"
@@ -590,8 +421,6 @@ resource "aws_lb_target_group" "web_sticky" {
   }
 }
 
-
-# Listeners
 resource "aws_alb_listener" "http_redirect" {
   load_balancer_arn = aws_alb.public_app.arn
   port              = 80
