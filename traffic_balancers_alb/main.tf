@@ -1,5 +1,11 @@
 # ******** DATA SOURCES ********
 
+# data "aws_acm_certificate" "cert" {
+#   domain      = "kovtun.dev"
+#   types       = ["AMAZON_ISSUED"]
+#   most_recent = true
+# }
+
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"]
@@ -44,17 +50,9 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-
-
 data "aws_key_pair" "primary" {
   key_name = "Primary"
 }
-
-# data "aws_acm_certificate" "cert" {
-#   domain   = "mentorship-test.com"
-#   statuses = ["ISSUED"]
-# }
-
 
 # ******** VPC ********
 
@@ -256,156 +254,8 @@ resource "aws_security_group" "web" {
 #   })
 # }
 
-# ******** ALB ********
 
-
-# resource "aws_lb" "demo" {
-#   name = "demo-mentorship-alb"
-
-#   internal           = false
-#   load_balancer_type = "application"
-#   # security_groups    = [aws_security_group.web.id]
-#   subnets = [aws_subnet.private.id, aws_subnet.public.id]
-
-#   tags = merge(var.default_tags, {
-#     Name = "Demo ALB"
-#   })
-# }
-
-# resource "aws_lb_target_group" "tg1" {
-#   name     = "demo-tg1"
-#   protocol = "HTTP"
-
-#   vpc_id = aws_vpc.demo.id
-#   port   = 80
-
-#   health_check {
-#     path                = "/"
-#     protocol            = "HTTP"
-#     matcher             = "200"
-#     interval            = 30
-#     timeout             = 5
-#     healthy_threshold   = 2
-#     unhealthy_threshold = 2
-#   }
-
-#   tags = merge(var.default_tags, {
-#     Name = "DemoTargetGroup1"
-#   })
-# }
-
-# resource "aws_lb_target_group" "target_groups" {
-#   count    = length(aws_instance.main)
-#   name     = "demo-tg${count.index}"
-#   protocol = "HTTP"
-
-#   vpc_id = aws_vpc.demo.id
-#   port   = 80
-
-#   health_check {
-#     path                = "/"
-#     protocol            = "HTTP"
-#     matcher             = "200"
-#     interval            = 30
-#     timeout             = 5
-#     healthy_threshold   = 2
-#     unhealthy_threshold = 2
-#   }
-
-#   stickiness {
-#     enabled         = true
-#     type            = "lb_cookie"
-#     cookie_duration = 86400
-#   }
-
-#   tags = merge(var.default_tags, {
-#     Name = "DemoTargetGroup${count.index}"
-#   })
-# }
-
-# resource "aws_alb_target_group_attachment" "tg_attachments" {
-#   count = length(aws_instance.main)
-
-#   port             = 80
-#   target_id        = aws_instance.main[count.index].id
-#   target_group_arn = aws_lb_target_group.target_groups[count.index].arn
-# }
-
-
-
-# resource "aws_lb_listener" "http" {
-#   load_balancer_arn = aws_lb.demo.arn
-#   port              = 80
-#   protocol          = "HTTP"
-
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.target_groups[0].arn
-#   }
-# }
-
-# resource "aws_lb_listener" "https" {
-#   load_balancer_arn = aws_lb.demo.arn
-#   port              = 443
-#   protocol          = "HTTPS"
-#   ssl_policy        = "ELBSecurityPolicy-2016-08"
-#   certificate_arn   = data.aws_acm_certificate.cert.arn
-
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.target_groups[0].arn
-#   }
-# }
-
-# resource "aws_lb_listener_rule" "path_rule" {
-#   listener_arn = aws_lb_listener.http.arn
-#   priority     = 100
-
-#   action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.target_groups[1].arn
-#   }
-
-#   condition {
-#     path_pattern {
-#       values = ["/instance2"]
-#     }
-#   }
-# }
-
-# resource "aws_lb_listener" "http_redirect" {
-#   load_balancer_arn = aws_lb.demo.arn
-#   port              = 80
-#   protocol          = "HTTP"
-
-#   default_action {
-#     type = "redirect"
-#     redirect {
-#       port        = "443"
-#       protocol    = "HTTPS"
-#       status_code = "HTTP_301"
-#     }
-#   }
-# }
-
-# resource "aws_lb_listener_rule" "path_rule_https" {
-#   count        = 0
-#   listener_arn = aws_lb_listener.https.arn
-#   priority     = 100
-
-#   action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.target_groups[1].arn
-#   }
-
-#   condition {
-#     path_pattern {
-#       values = ["/instance2"]
-#     }
-#   }
-# }
-
-# EC2
+# ******** EC2 ********
 
 resource "aws_instance" "amazon_linux" {
   ami           = data.aws_ami.amazon_linux.id
@@ -557,125 +407,215 @@ resource "aws_instance" "ubuntu" {
   user_data = <<-EOF
     #!/bin/bash
     apt update -y
-    apt install -y apache2
+    apt install -y apache2 curl unzip nodejs npm git
+
     systemctl start apache2
     systemctl enable apache2
 
-    # Burger-Themed Landing Page
+    # Personal Landing Page for Ivan Kovtun
     cat << 'HTML' > /var/www/html/index.html
     <!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Burger Bonanza - Ubuntu</title>
+        <title>Ivan Kovtun - The Tech Maestro</title>
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
                 font-family: 'Arial', sans-serif;
-                background: linear-gradient(135deg, #ffcc00, #ff5733);
-                color: #333;
-                line-height: 1.6;
+                background: #000;
+                color: white;
+                text-align: center;
+                overflow: hidden;
             }
             header {
-                background: rgba(0, 0, 0, 0.8);
-                color: white;
-                padding: 20px;
-                text-align: center;
-                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+                background: linear-gradient(90deg, #ffcc00, #ff5733);
+                padding: 30px;
+                box-shadow: 0px 4px 15px rgba(255, 87, 51, 0.5);
             }
-            header h1 {
-                font-size: 2.5em;
+            h1 {
+                font-size: 2.8em;
                 text-transform: uppercase;
-                letter-spacing: 2px;
+                letter-spacing: 3px;
             }
             .container {
-                max-width: 1200px;
-                margin: 40px auto;
+                margin: 50px auto;
+                max-width: 900px;
                 padding: 20px;
-                display: flex;
-                flex-wrap: wrap;
-                gap: 20px;
-                justify-content: center;
             }
-            .burger-card {
-                background: white;
-                border-radius: 15px;
+            .highlight {
+                color: #ffcc00;
+                font-weight: bold;
+            }
+            .tech-list {
+                margin-top: 30px;
+                font-size: 1.2em;
+            }
+            .console {
+                background: rgba(0, 0, 0, 0.9);
                 padding: 20px;
-                width: 300px;
-                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-                text-align: center;
-                transition: transform 0.3s ease;
+                margin-top: 30px;
+                border-radius: 8px;
+                box-shadow: 0px 0px 10px rgba(255, 204, 0, 0.7);
+                font-family: monospace;
+                text-align: left;
+                height: 200px;
+                overflow: auto;
             }
-            .burger-card:hover {
-                transform: translateY(-10px);
-            }
-            .burger-card img {
-                width: 100%;
+            .chat-container {
+                margin-top: 30px;
+                padding: 15px;
+                background: rgba(255, 255, 255, 0.1);
                 border-radius: 10px;
             }
-            .burger-card h2 {
-                font-size: 1.5em;
-                margin: 10px 0;
-                color: #ff5733;
-            }
-            .burger-card p {
+            input {
+                width: 70%;
+                padding: 10px;
                 font-size: 1em;
-                color: #666;
+                margin-right: 10px;
+                border-radius: 5px;
+            }
+            button {
+                padding: 10px;
+                font-size: 1em;
+                background: #ffcc00;
+                border: none;
+                cursor: pointer;
+                border-radius: 5px;
             }
             footer {
-                background: rgba(0, 0, 0, 0.8);
-                color: white;
-                text-align: center;
+                margin-top: 40px;
                 padding: 15px;
-                position: fixed;
-                bottom: 0;
-                width: 100%;
                 font-size: 0.9em;
-            }
-            footer a {
-                color: #ffcc00;
-                text-decoration: none;
+                background: rgba(255, 255, 255, 0.1);
             }
         </style>
     </head>
     <body>
         <header>
-            <h1>Burger Bonanza - Ubuntu</h1>
+            <h1>Ivan Kovtun - The Tech Maestro</h1>
         </header>
         <div class="container">
-            <div class="burger-card">
-                <img src="https://via.placeholder.com/280x180.png?text=Classic+Burger" alt="Classic Burger">
-                <h2>Classic Burger</h2>
-                <p>Juicy beef patty with lettuce, tomato, and secret sauce.</p>
+            <p>🚀 Cloud Engineer | DevOps | Gen AI Specialist | Automation Expert</p>
+            <p class="tech-list">🔧 Expertise: <span class="highlight">AWS, Azure, VMware, PowerShell, Bash, Python, Kubernetes, Terraform</span></p>
+            
+            <div class="console" id="console">
+                <p>> Welcome to my cloud-powered AWS server!</p>
             </div>
-            <div class="burger-card">
-                <img src="https://via.placeholder.com/280x180.png?text=Spicy+Burger" alt="Spicy Burger">
-                <h2>Spicy Burger</h2>
-                <p>Fiery patty with jalapeños and pepper jack cheese.</p>
-            </div>
-            <div class="burger-card">
-                <img src="https://via.placeholder.com/280x180.png?text=Veggie+Burger" alt="Veggie Burger">
-                <h2>Veggie Burger</h2>
-                <p>Fresh veggies and quinoa patty, guilt-free delight.</p>
+
+            <div class="chat-container">
+                <p>💬 AI Chatbot - Ask me anything!</p>
+                <input type="text" id="chatInput" placeholder="Type a message...">
+                <button onclick="sendMessage()">Send</button>
+                <div id="chatOutput"></div>
             </div>
         </div>
         <footer>
-            <p>Developed by <a href="https://github.com/ivasik-k7" target="_blank">Ivan Kovtun</a> &copy; 2025</p>
+            <p>💡 Built on AWS | Powered by Apache & Node.js | <a href="https://github.com/ivasik-k7" target="_blank">GitHub</a></p>
         </footer>
+        <script>
+            let ws = new WebSocket("ws://" + location.hostname + ":8080");
+
+            function logToConsole(message) {
+                let consoleDiv = document.getElementById("console");
+                consoleDiv.innerHTML += "<p>> " + message + "</p>";
+                consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            }
+
+            ws.onmessage = function(event) {
+                logToConsole("Server: " + event.data);
+            };
+
+            function sendMessage() {
+                let input = document.getElementById("chatInput");
+                let output = document.getElementById("chatOutput");
+                ws.send(input.value);
+                output.innerHTML += "<p>You: " + input.value + "</p>";
+                input.value = "";
+            }
+        </script>
     </body>
     </html>
     HTML
 
-    # Install Node.js and WebSocket Server
-    apt install -y nodejs npm
-    npm install -g ws
-    echo 'const WebSocket = require("ws"); const wss = new WebSocket.Server({ port: 8080 }); wss.on("connection", ws => { ws.on("message", msg => ws.send("Echo from Ubuntu: " + msg)); });' > /home/ubuntu/server.js
-    node /home/ubuntu/server.js &
-    EOF
+    # Install & Configure WebSocket Server
+    echo 'const WebSocket = require("ws"); 
+          const wss = new WebSocket.Server({ port: 8080 }); 
+          wss.on("connection", ws => { 
+              ws.on("message", msg => ws.send("Echo: " + msg)); 
+          });' > /home/ubuntu/server.js
+
+    nohup node /home/ubuntu/server.js > /dev/null 2>&1 &
+  EOF
 
   tags = merge(var.default_tags, {
     "Name"        = "ubuntu-alb-test-server"
     "Description" = "Ubuntu instance with burger-themed landing page"
   })
 }
+
+
+# ******** ALB ********
+
+resource "aws_alb" "public_app" {
+  name               = "demo-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.web.id]
+  subnets            = [aws_subnet.public.id]
+
+  enable_deletion_protection = true
+}
+
+resource "aws_lb_target_group" "web" {
+  name     = "web-alb-target-group"
+  port     = 80
+  protocol = "HTTP"
+
+  vpc_id = aws_vpc.demo.id
+}
+
+resource "aws_lb_target_group" "web_sticky" {
+  name     = "web-alb-target-group-sticky"
+  port     = 80
+  protocol = "HTTP"
+
+  vpc_id = aws_vpc.demo.id
+
+  stickiness {
+    type            = "lb_cookie"
+    enabled         = true
+    cookie_duration = 86400
+  }
+}
+
+
+# Listeners
+resource "aws_alb_listener" "http_redirect" {
+  load_balancer_arn = aws_alb.public_app.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+    redirect {
+      status_code = "HTTP_301"
+      protocol    = "HTTPS"
+      port        = "443"
+    }
+  }
+}
+
+# resource "aws_lb_listener" "https" {
+#   load_balancer_arn = aws_alb.public_app.arn
+#   port              = 443
+#   protocol          = "HTTPS"
+#   ssl_policy        = "ELBSecurityPolicy-2016-08"
+#   certificate_arn   = data.aws_acm_certificate.cert.arn
+
+#   default_action {
+#     type             = "forward"
+#     target_group_arn = aws_lb_target_group.web.arn
+#   }
+# }
