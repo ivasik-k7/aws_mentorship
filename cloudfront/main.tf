@@ -83,7 +83,6 @@ resource "aws_s3_bucket_policy" "cf_policy" {
 
 
 # lambda@edge
-
 resource "aws_iam_role" "edge" {
   name = "cdn-edge-${var.environment}"
   assume_role_policy = jsonencode({
@@ -201,6 +200,7 @@ resource "aws_cloudfront_origin_access_control" "oac" {
 resource "aws_cloudfront_distribution" "dist" {
   enabled = true
 
+  default_root_object = "index.html"
   origin {
     domain_name              = aws_s3_bucket.cdn.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
@@ -227,7 +227,8 @@ resource "aws_cloudfront_distribution" "dist" {
 
   restrictions {
     geo_restriction {
-      restriction_type = "none"
+      restriction_type = "blacklist"
+      locations        = ["UA"]
     }
   }
 
