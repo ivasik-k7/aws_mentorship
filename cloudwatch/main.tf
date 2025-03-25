@@ -80,6 +80,186 @@ resource "aws_security_group" "public" {
   })
 }
 
+resource "aws_iam_role" "vpc_flow_logs" {
+  name = "vpc-flow-logs-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "vpc-flow-logs.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "vpc_flow_logs_policy" {
+  role = aws_iam_role.vpc_flow_logs.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = aws_cloudwatch_log_group.vpc_flow_logs.arn
+      }
+    ]
+  })
+}
+
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/aws/vpc/flow-logs-${module.vpc.vpc_id}"
+  retention_in_days = 7
+}
+
+module "cdn_bucket" {
+  source = "../modules/s3"
+
+  bucket_name = "mentorship-demo-cloudfront-cdn-${var.environment}"
+
+  versioning_enabled = true
+  encryption_enabled = true
+
+  tags = merge(var.default_tags, {
+    Name = "mentorship-demo-cloudfront-cdn"
+  })
+}
+
+module "log_bucket" {
+  source = "../modules/s3"
+
+  bucket_name = "mentorship-demo-logs-${var.environment}"
+
+  versioning_enabled = true
+  encryption_enabled = true
+
+  object_ownership = "BucketOwnerPreferred"
+
+  tags = merge(var.default_tags, {
+    Name = "mentorship-demo-logs-${var.environment}"
+  })
+}
+
+
+
+resource "aws_s3_bucket_lifecycle_configuration" "cdn" {
+  bucket = module.cdn_bucket.bucket_id
+
+  rule {
+    id     = "ExpireOldObjects"
+    status = "Enabled"
+
+    expiration {
+      days = 30
+    }
+  }
+  rule {
+    id     = "TransitionToIA"
+    status = "Enabled"
+
+    transition {
+      days          = 30
+      storage_class = "STANDARD_IA"
+    }
+  }
+  rule {
+    id     = "ExpireOldVersions"
+    status = "Enabled"
+
+    noncurrent_version_expiration {
+      noncurrent_days = 60
+    }
+  }
+}
+
+resource "aws_cloudfront_origin_access_control" "oac" {
+  name        = "cdn.${var.domain}.${var.environment}"
+  description = "Origin Access Identity for S3 CDN"
+
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+resource "aws_cloudfront_distribution" "dist" {
+  enabled = true
+
+  default_root_object = "index.html"
+  origin {
+    domain_name              = module.cdn_bucket.bucket_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.oac.id
+    origin_id                = module.cdn_bucket.bucket_id
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  logging_config {
+    bucket          = module.log_bucket.bucket_domain_name
+    prefix          = "cloudfront"
+    include_cookies = false
+  }
+
+  default_cache_behavior {
+    target_origin_id       = module.cdn_bucket.bucket_id
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = false
+      cookies {
+        forward = "none"
+      }
+    }
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "whitelist"
+      locations        = ["PL"]
+    }
+  }
+
+  tags = merge(var.default_tags, {
+    Name        = "cdn.${var.domain}.${var.environment}"
+    Description = "Distribution for ${var.domain} in ${var.environment}"
+  })
+}
+
+
+resource "aws_s3_bucket_policy" "cdn" {
+  bucket = module.cdn_bucket.bucket_id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${module.cdn_bucket.bucket_arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.dist.arn
+          }
+        }
+      }
+    ]
+  })
+}
+
+
 
 module "vpc" {
   source = "../modules/vpc"
@@ -93,7 +273,10 @@ module "vpc" {
   environment  = "dev"
 
   enable_nat_gateway = false
-  enable_flow_logs   = false
+
+  enable_flow_logs      = true
+  flow_log_iam_role_arn = aws_iam_role.vpc_flow_logs.arn
+  flow_log_destination  = aws_cloudwatch_log_group.vpc_flow_logs.arn
 
   default_tags = var.default_tags
 
@@ -319,55 +502,37 @@ resource "aws_lb_listener" "alb_listener" {
 resource "aws_cloudwatch_dashboard" "main" {
   dashboard_name = "demo-signals"
   dashboard_body = jsonencode({
-    widgets = [
+    widgets = flatten([
+      [
+        for idx, instance_id in module.ubuntu.instance_ids : {
+          type   = "metric"
+          x      = (idx % 2) * 12
+          y      = (floor(idx / 2) + length(module.ubuntu.instance_ids)) * 6
+          width  = 12
+          height = 6
+          properties = {
+            metrics = [
+              ["AWS/EC2", "NetworkIn", "InstanceId", instance_id],
+              ["AWS/EC2", "NetworkOut", "InstanceId", instance_id],
+            ]
+            view    = "timeSeries"
+            stacked = false
+            region  = var.region
+            title   = "EC2 Traffic - ${instance_id}"
+            period  = 300
+            stat    = "Sum"
+          }
+        }
+      ],
       {
         type   = "metric"
         x      = 0
-        y      = 0
+        y      = (length(module.ubuntu.instance_ids) * 2) * 6
         width  = 12
         height = 6
         properties = {
           metrics = [
-            ["AWS/EC2", "CPUUtilization", "InstanceId", "${module.ubuntu.instance_ids[0]}"],
-            ["AWS/EC2", "DiskReadOps", "InstanceId", "${module.ubuntu.instance_ids[0]}"],
-            ["AWS/EC2", "DiskWriteOps", "InstanceId", "${module.ubuntu.instance_ids[0]}"],
-          ]
-          view    = "timeSeries"
-          stacked = false
-          region  = var.region
-          title   = "EC2 Saturation (CPU & Disk Ops)"
-          period  = 300
-          stat    = "Average"
-        }
-      },
-      {
-        type   = "metric"
-        x      = 12
-        y      = 0
-        width  = 12
-        height = 6
-        properties = {
-          metrics = [
-            ["AWS/EC2", "NetworkIn", "InstanceId", "${module.ubuntu.instance_ids[0]}"],
-            ["AWS/EC2", "NetworkOut", "InstanceId", "${module.ubuntu.instance_ids[0]}"],
-          ]
-          view    = "timeSeries"
-          stacked = false
-          region  = var.region
-          title   = "EC2 Traffic (Network In/Out)"
-          period  = 300
-          stat    = "Sum"
-        }
-      },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 6
-        width  = 12
-        height = 6
-        properties = {
-          metrics = [
-            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", "app/${aws_lb.alb.name}/${aws_lb.alb.id}"],
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", aws_lb.alb.name],
           ]
           view    = "timeSeries"
           stacked = false
@@ -380,12 +545,12 @@ resource "aws_cloudwatch_dashboard" "main" {
       {
         type   = "metric"
         x      = 12
-        y      = 6
+        y      = (length(module.ubuntu.instance_ids) * 2) * 6
         width  = 12
         height = 6
         properties = {
           metrics = [
-            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${aws_lb.alb.name}"],
+            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", aws_lb.alb.name],
           ]
           view    = "timeSeries"
           stacked = false
@@ -395,26 +560,37 @@ resource "aws_cloudwatch_dashboard" "main" {
           stat    = "Average"
         }
       },
-      {
-        type   = "metric"
-        x      = 0
-        y      = 12
-        width  = 24
-        height = 6
-        properties = {
-          metrics = [
-            ["AWS/ApplicationELB", "HTTPCode_Target_2XX_Count", "LoadBalancer", "${aws_lb.alb.name}"],
-            ["AWS/ApplicationELB", "HTTPCode_Target_4XX_Count", "LoadBalancer", "${aws_lb.alb.name}"],
-            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", "${aws_lb.alb.name}"],
-          ]
-          view    = "timeSeries"
-          stacked = false
-          region  = var.region
-          title   = "ALB Errors (HTTP Codes)"
-          period  = 300
-          stat    = "Sum"
-        }
-      },
-    ]
+      # {
+      #   type   = "log"
+      #   x      = 0
+      #   y      = (length(module.ubuntu.instance_ids) * 2 + 2) * 6
+      #   width  = 24
+      #   height = 6
+      #   properties = {
+      #     query         = "stats count(*) by bin(5m)"
+      #     region        = var.region
+      #     title         = "VPC Flow Logs - Total Bytes Transferred"
+      #     view          = "timeSeries"
+      #     logGroupNames = [aws_cloudwatch_log_group.vpc_flow_logs.name]
+      #   }
+      # }
+    ])
   })
 }
+
+
+# resource "aws_cloudwatch_metric_alarm" "ec2_cpu_alarm" {
+#   count               = length(module.ubuntu.instance_ids)
+#   alarm_name          = "ec2-cpu-high-${module.ubuntu.instance_ids[count.index]}"
+#   comparison_operator = "GreaterThanThreshold"
+#   evaluation_periods  = 2
+#   metric_name         = "CPUUtilization"
+#   namespace           = "AWS/EC2"
+#   period              = 300
+#   statistic           = "Average"
+#   threshold           = 80
+#   alarm_description   = "This alarm triggers when CPU utilization exceeds 80% for instance ${module.ubuntu.instance_ids[count.index]}"
+#   dimensions = {
+#     InstanceId = module.ubuntu.instance_ids[count.index]
+#   }
+# }
