@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Daniil's Artistic Journey</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Raleway:wght@300;700&display=swap");
+      body {
+        font-family: "Raleway", sans-serif;
+        text-align: center;
+        background: black;
+        color: white;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        position: relative;
+        z-index: 2;
+      }
+      .title {
+        font-size: 3rem;
+        font-weight: bold;
+        background: linear-gradient(
+          45deg,
+          #ff0000,
+          #ff9900,
+          #ffff00,
+          #33cc33,
+          #3399ff,
+          #9933cc
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: colorShift 5s infinite alternate;
+      }
+      @keyframes colorShift {
+        0% {
+          filter: hue-rotate(0deg);
+        }
+        100% {
+          filter: hue-rotate(360deg);
+        }
+      }
+      .bouncing-image {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        animation: rotate 2s linear infinite;
+      }
+      @keyframes rotate {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .canvas-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 1;
+      }
+      .message {
+        font-size: 1.5rem;
+        max-width: 600px;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 15px;
+        border-radius: 15px;
+        margin-top: 20px;
+        backdrop-filter: blur(10px);
+      }
+      .slider {
+        position: relative;
+        width: 300;
+        height: 100;
+        overflow: hidden;
+        margin: 20px auto;
+        border-radius: 15px;
+      }
+      .slides {
+        display: flex;
+        width: 100%;
+        animation: slide 6s infinite;
+      }
+      .slide {
+        width: 100%;
+        flex-shrink: 0;
+      }
+      @keyframes slide {
+        0%,
+        33% {
+          transform: translateX(0);
+        }
+        34%,
+        66% {
+          transform: translateX(-100%);
+        }
+        67%,
+        100% {
+          transform: translateX(-200%);
+        }
+      }
+      footer {
+        position: absolute;
+        bottom: 10px;
+        width: 100%;
+        text-align: center;
+        padding: 10px;
+        color: white;
+        font-size: 0.8rem;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas class="canvas-container"></canvas>
+    <img
+      src="https://cdn0.iconfinder.com/data/icons/bold-purple-free-samples/32/Dildo_Penis_Sex_Toy-512.png"
+      class="bouncing-image"
+      id="bouncing"
+    />
+    <div class="container">
+      <h1 class="title">Данілко в Дубаї 🎨✨</h1>
+      <p class="message">
+        Данілко, бажаю, щоб твоя кар'єра в ЛГБТ-секторі в Дубаї була успішною та
+        приносила багато задоволення — і не тільки від роботи! Ти там точно
+        розбурхаєш усіх! 🌈💥 Хай кожен день буде сповнений нових вражень, а
+        гроші ллються рікою як пацаняча сметана по твоїх губах. 🤑🔥
+      </p>
+    </div>
+
+    <footer>Developed by Grossik2022</footer>
+    <script>
+      const canvas = document.querySelector(".canvas-container");
+      const ctx = canvas.getContext("2d");
+
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const dvdLogo = document.getElementById("bouncing");
+      let x = 100,
+        y = 100;
+      let dx = 2,
+        dy = 2;
+
+      function bounce() {
+        x += dx;
+        y += dy;
+
+        if (x <= 0 || x + dvdLogo.width >= window.innerWidth) {
+          dx *= -1;
+        }
+        if (y <= 0 || y + dvdLogo.height >= window.innerHeight) {
+          dy *= -1;
+        }
+
+        dvdLogo.style.left = x + "px";
+        dvdLogo.style.top = y + "px";
+
+        requestAnimationFrame(bounce);
+      }
+
+      bounce();
+
+      const particles = [];
+      class Particle {
+        constructor() {
+          this.x = Math.random() * canvas.width;
+          this.y = Math.random() * canvas.height;
+          this.size = Math.random() * 5 + 1;
+          this.speedX = Math.random() * 3 - 1.5;
+          this.speedY = Math.random() * 3 - 1.5;
+          this.color = `hsl(${Math.random() * 360}, 100%, 70%)`;
+        }
+        update() {
+          this.x += this.speedX;
+          this.y += this.speedY;
+          if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+          if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+        }
+        draw() {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fillStyle = this.color;
+          ctx.fill();
+        }
+      }
+
+      function init() {
+        for (let i = 0; i < 100; i++) {
+          particles.push(new Particle());
+        }
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach((p) => {
+          p.update();
+          p.draw();
+        });
+        requestAnimationFrame(animate);
+      }
+
+      init();
+      animate();
+    </script>
+  </body>
+</html>

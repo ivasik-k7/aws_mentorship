@@ -1,0 +1,26 @@
+# Ignore version control files
+
+.git
+.gitignore
+
+# Ignore local Terraform state and cache
+
+.terraform/
+_.tfstate
+_.tfstate.backup
+
+# Ignore temporary files
+
+_.bak
+_.tmp
+
+# Ignore logs and other generated files
+
+logs/
+\*.log
+
+# Ignore specific files you don’t want included
+
+secrets.tfvars
+local_config.tf
+\*.part.tf
