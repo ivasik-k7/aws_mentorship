@@ -63,13 +63,17 @@ data "aws_key_pair" "primary" {
 
 data "aws_region" "current" {}
 
+data "aws_route53_zone" "main" {
+  name         = var.domain_name
+  private_zone = false
+}
 
-# data "aws_acm_certificate" "certificate" {
-#   domain   = "${var.environment}-web.example.com" # I need to provide the domain name
-#   statuses = ["ISSUED"]
+data "aws_acm_certificate" "certificate" {
+  domain   = var.domain_name
+  statuses = ["ISSUED"]
 
-#   most_recent = true
-# }
+  most_recent = true
+}
 
 data "aws_caller_identity" "current" {}
 
@@ -98,6 +102,48 @@ data "aws_cloudfront_cache_policy" "caching_optimized" {
 }
 
 # ---- End of datasources.part.tf ----
+
+# ---- Beginning of route53.part.tf ----
+resource "aws_route53_record" "root" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = var.domain_name
+
+  type = "A"
+
+  alias {
+    name                   = aws_elb.web.dns_name # Updated to CLB attribute
+    zone_id                = aws_elb.web.zone_id  # Updated to CLB attribute
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "www" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = "www.${var.domain_name}"
+
+  type = "A"
+
+  alias {
+    name                   = aws_elb.web.dns_name # Updated to CLB attribute
+    zone_id                = aws_elb.web.zone_id  # Updated to CLB attribute
+    evaluate_target_health = true
+  }
+}
+
+# resource "aws_route53_record" "cdn" {
+#   zone_id = data.aws_route53_zone.main.zone_id
+#   name    = "cdn.${var.domain_name}"
+
+#   type = "A"
+
+#   alias {
+#     name                   = aws_cloudfront_distribution.cdn.domain_name
+#     zone_id                = aws_cloudfront_distribution.cdn.hosted_zone_id
+#     evaluate_target_health = true
+#   }
+# }
+
+# ---- End of route53.part.tf ----
 
 # ---- Beginning of s3.part.tf ----
 
@@ -359,80 +405,107 @@ EOF
 }
 
 resource "aws_autoscaling_group" "web_asg" {
-
-  name = "${var.environment}-web-asg"
-
-  desired_capacity = 1
-  min_size         = 1
-  max_size         = 2
-
+  name                = "${var.environment}-web-asg"
   vpc_zone_identifier = module.vpc.public_subnet_ids
+  load_balancers      = [aws_elb.web.name]
+  health_check_type   = "ELB"
+  min_size            = 1
+  max_size            = 3
+  desired_capacity    = 2
 
-  target_group_arns = [
-    aws_lb_target_group.web_http_tg.arn,
-    aws_lb_target_group.web_https_tg.arn,
-  ]
   launch_template {
     id      = aws_launch_template.web.id
     version = "$Latest"
   }
+
+  # target_group_arns   = [aws_lb_target_group.primary.arn] # ALB section
 }
 
-resource "aws_lb" "web" {
-  enable_deletion_protection = false
-  enable_http2               = true
-  internal                   = false
+resource "aws_elb" "web" {
+  name            = "${var.environment}-web-clb"
+  internal        = false
+  security_groups = [aws_security_group.lb_sg.id]
+  subnets         = module.vpc.public_subnet_ids
 
-  load_balancer_type = "application"
-  name               = "${var.environment}-web-lb"
+  cross_zone_load_balancing   = true
+  idle_timeout                = 60
+  connection_draining         = true
+  connection_draining_timeout = 300
 
-  security_groups = [
-    aws_security_group.lb_sg.id,
-  ]
-
-  subnets = module.vpc.public_subnet_ids
-}
-
-resource "aws_lb_target_group" "web_http_tg" {
-  name     = "web-http-tg"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = module.vpc.vpc_id
-}
-
-
-resource "aws_lb_target_group" "web_https_tg" {
-  name     = "web-https-tg"
-  port     = 443
-  protocol = "HTTPS"
-  vpc_id   = module.vpc.vpc_id
-}
-
-resource "aws_lb_listener" "web_http_listener" {
-  load_balancer_arn = aws_lb.web.arn
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.web_http_tg.arn
+  listener {
+    instance_port     = 80
+    instance_protocol = "HTTP"
+    lb_port           = 80
+    lb_protocol       = "HTTP"
   }
+
+  listener {
+    instance_port      = 80
+    instance_protocol  = "HTTP"
+    lb_port            = 443
+    lb_protocol        = "HTTPS"
+    ssl_certificate_id = data.aws_acm_certificate.certificate.arn
+  }
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 5
+    target              = "HTTP:80/"
+    interval            = 30
+  }
+
+
+  tags = merge(var.default_tags, {
+    Name = "${var.environment}-web-elb"
+  })
+
 }
 
-# resource "aws_lb_listener" "web_https_listener" {
-#   load_balancer_arn = aws_lb.web_lb.arn
-#   port              = 443
-#   protocol          = "HTTPS"
+# This balancer type works just fine for HTTP/HTTPS traffic
+# resource "aws_lb" "web" {
+#   enable_deletion_protection = false
+#   enable_http2               = true
+#   internal                   = false
 
-#   ssl_policy      = "ELBSecurityPolicy-2016-08"
-#   certificate_arn = aws_acm_certificate.web_cert.arn
+#   load_balancer_type = "application"
+#   name               = "${var.environment}-web-lb"
 
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.web_https_tg.arn
+#   security_groups = [
+#     aws_security_group.lb_sg.id,
+#   ]
+
+#   subnets = module.vpc.public_subnet_ids
+# }
+
+# resource "aws_lb_target_group" "primary" {
+#   name     = "${var.environment}-primary-tg"
+#   port     = 80
+#   protocol = "HTTP"
+#   vpc_id   = module.vpc.vpc_id
+
+#   health_check {
+#     path                = "/"
+#     protocol            = "HTTP"
+#     matcher             = "200"
+#     interval            = 30
+#     timeout             = 5
+#     healthy_threshold   = 2
+#     unhealthy_threshold = 2
 #   }
 # }
 
+# resource "aws_lb_listener" "web_https_listener" {
+#   load_balancer_arn = aws_lb.web.arn
+#   port              = 443
+#   protocol          = "HTTPS"
+#   ssl_policy        = "ELBSecurityPolicy-2016-08"
+#   certificate_arn   = data.aws_acm_certificate.certificate.arn
+#   default_action {
+#     type             = "forward"
+#     target_group_arn = aws_lb_target_group.primary.arn
+#   }
+# }
 
 # ---- End of template.part.tf ----
 

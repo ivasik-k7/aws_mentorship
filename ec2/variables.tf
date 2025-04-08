@@ -8,6 +8,11 @@ variable "environment" {
   description = "Environment to deploy resources"
 }
 
+variable "domain_name" {
+  default     = "quaeb9ph.amakarov.info"
+  description = "Domain name for the application"
+}
+
 variable "default_tags" {
   default = {
     owner   = "Ivan Kovtun"
