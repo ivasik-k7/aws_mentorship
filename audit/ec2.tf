@@ -60,7 +60,7 @@ module "audit_instance" {
 
   iam_role_name = aws_iam_role.audit_role.name
 
-  default_tags = merge(var.default_tags, {
+  tags = merge(var.default_tags, {
     Name = "audit-${var.environment}"
   })
 }
