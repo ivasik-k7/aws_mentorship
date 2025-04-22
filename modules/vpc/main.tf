@@ -5,7 +5,7 @@ resource "aws_vpc" "main" {
   instance_tenancy     = "default"
 
   tags = merge(var.default_tags, {
-    Name = "${var.project_name}-${var.environment}-vpc"
+    Name = "${var.identifier}"
   })
 }
 
@@ -13,7 +13,7 @@ resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
 
   tags = merge(var.default_tags, {
-    Name = "${var.project_name}-${var.environment}-igw"
+    Name = "${var.identifier}-igw"
   })
 }
 
@@ -25,7 +25,7 @@ resource "aws_subnet" "public" {
   availability_zone       = var.availability_zones[count.index]
 
   tags = merge(var.default_tags, {
-    Name                     = "${var.project_name}-${var.environment}-public-subnet-${count.index + 1}"
+    Name                     = "${var.identifier}-public-subnet-${count.index + 1}"
     Tier                     = "public"
     "kubernetes.io/role/elb" = "1"
   })
@@ -39,7 +39,7 @@ resource "aws_subnet" "private" {
   availability_zone       = var.availability_zones[count.index]
 
   tags = merge(var.default_tags, {
-    Name                              = "${var.project_name}-${var.environment}-private-subnet-${count.index + 1}"
+    Name                              = "${var.identifier}-private-subnet-${count.index + 1}"
     Tier                              = "private"
     "kubernetes.io/role/internal-elb" = "1"
   })
@@ -50,7 +50,7 @@ resource "aws_eip" "nat" {
   domain = "vpc"
 
   tags = merge(var.default_tags, {
-    Name = "${var.project_name}-${var.environment}-nat-eip"
+    Name = "${var.identifier}-nat-eip"
   })
 
   depends_on = [aws_internet_gateway.igw]
@@ -62,7 +62,7 @@ resource "aws_nat_gateway" "main" {
   subnet_id     = aws_subnet.public[0].id
 
   tags = merge(var.default_tags, {
-    Name = "${var.project_name}-${var.environment}-nat-gw"
+    Name = "${var.identifier}-nat-gw"
   })
 
   depends_on = [aws_internet_gateway.igw]
@@ -78,7 +78,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = merge(var.default_tags, {
-    Name = "${var.project_name}-${var.environment}-public-rt"
+    Name = "${var.identifier}-public-rt"
   })
 }
 
@@ -94,7 +94,7 @@ resource "aws_route_table" "private" {
   }
 
   tags = merge(var.default_tags, {
-    Name = "${var.project_name}-${var.environment}-private-rt"
+    Name = "${var.identifier}-private-rt"
   })
 }
 
@@ -118,6 +118,6 @@ resource "aws_flow_log" "vpc_flow_log" {
   vpc_id          = aws_vpc.main.id
 
   tags = merge(var.default_tags, {
-    Name = "${var.project_name}-${var.environment}-vpc-flow-logs"
+    Name = "${var.identifier}-vpc-flow-logs"
   })
 }

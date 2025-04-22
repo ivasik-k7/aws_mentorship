@@ -9,6 +9,12 @@ variable "tags" {
   default     = {}
 }
 
+variable "force_destroy_enabled" {
+  default     = false
+  description = "Whether to allow bucket deletion with objects inside"
+  type        = bool
+}
+
 variable "object_ownership" {
   description = "Object ownership setting (BucketOwnerPreferred, ObjectWriter, BucketOwnerEnforced)"
   type        = string

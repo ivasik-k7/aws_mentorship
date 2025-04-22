@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IP Info Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .fade-in {
+        animation: fadeIn 0.5s ease-in-out forwards;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .spin {
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white font-sans min-h-screen flex items-center justify-center p-4"
+  >
+    <div
+      class="w-full max-w-xl bg-gray-800 rounded-2xl shadow-2xl p-8 space-y-6 flex flex-col items-center fade-in"
+    >
+      <h1 class="text-4xl font-extrabold text-center">🌍 IP Info Viewer</h1>
+      <p class="text-gray-400 text-center text-sm sm:text-base">
+        Instantly detect your <strong>public IP</strong> and the
+        <strong>server address</strong> you're connected to.
+      </p>
+
+      <div id="loading" class="mt-4 flex justify-center hidden">
+        <div
+          class="w-10 h-10 border-4 border-white border-t-transparent rounded-full spin"
+        ></div>
+      </div>
+
+      <div id="result" class="w-full space-y-4 hidden fade-in">
+        <div class="flex justify-between bg-gray-700 p-4 rounded-xl">
+          <span class="font-semibold">🌐 Client IP</span>
+          <span id="client-ip" class="text-green-400 font-mono">-</span>
+        </div>
+        <div class="flex justify-between bg-gray-700 p-4 rounded-xl">
+          <span class="font-semibold">🖥️ Server Address</span>
+          <span id="server-ip" class="text-yellow-400 font-mono">-</span>
+        </div>
+      </div>
+
+      <button
+        id="refresh-btn"
+        class="bg-blue-500 hover:bg-blue-600 px-6 py-2 rounded-xl transition-all text-white font-medium shadow-lg"
+      >
+        🔄 Refresh Info
+      </button>
+    </div>
+
+    <footer
+      class="absolute bottom-4 text-gray-500 text-xs text-center w-full px-2"
+    >
+      &copy; 2025 IP Info Viewer — Responsive & Auto Detect
+    </footer>
+
+    <script>
+      const clientIP = document.getElementById("client-ip");
+      const serverIP = document.getElementById("server-ip");
+      const loading = document.getElementById("loading");
+      const result = document.getElementById("result");
+      const refreshBtn = document.getElementById("refresh-btn");
+
+      function fetchIPInfo() {
+        loading.classList.remove("hidden");
+        result.classList.add("hidden");
+
+        fetch("https://api.ipify.org?format=json")
+          .then((res) => res.json())
+          .then((data) => {
+            clientIP.textContent = data.ip;
+          })
+          .catch(() => {
+            clientIP.textContent = "Unavailable";
+          })
+          .finally(() => {
+            setTimeout(() => {
+              serverIP.textContent = window.location.hostname || "Unknown";
+              loading.classList.add("hidden");
+              result.classList.remove("hidden");
+            }, 800);
+          });
+      }
+
+      window.addEventListener("DOMContentLoaded", fetchIPInfo);
+      refreshBtn.addEventListener("click", fetchIPInfo);
+    </script>
+  </body>
+</html>

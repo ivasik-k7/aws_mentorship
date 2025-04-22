@@ -184,3 +184,30 @@ output "vpc_details" {
     private_route_table = aws_route_table.private.id
   }
 }
+
+
+output "public_route_table_ids" {
+  description = "List of public route table IDs"
+  value       = [aws_route_table.public.id]
+}
+
+output "private_route_table_ids" {
+  description = "List of private route table IDs"
+  value       = [aws_route_table.private.id]
+}
+
+output "all_subnet_availability_zones" {
+  description = "List of all availability zones used across public and private subnets"
+  value = distinct(concat(
+    aws_subnet.public[*].availability_zone,
+    aws_subnet.private[*].availability_zone
+  ))
+}
+
+output "subnet_id_map" {
+  description = "Map of public and private subnet IDs"
+  value = {
+    public  = aws_subnet.public[*].id
+    private = aws_subnet.private[*].id
+  }
+}

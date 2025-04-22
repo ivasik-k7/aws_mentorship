@@ -18,14 +18,10 @@ variable "availability_zones" {
   type        = list(string)
 }
 
-variable "project_name" {
-  description = "Name of the project"
+variable "identifier" {
+  description = "Identifier for the VPC"
   type        = string
-}
-
-variable "environment" {
-  description = "Environment name (dev/stage/prod)"
-  type        = string
+  default     = "vpc"
 }
 
 variable "default_tags" {
