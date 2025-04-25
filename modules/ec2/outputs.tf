@@ -13,10 +13,6 @@ output "private_ips" {
   value       = var.enable_autoscaling ? [] : aws_instance.ec2[*].private_ip
 }
 
-output "launch_template_id" {
-  description = "ID of the launch template"
-  value       = var.iam_role_name != "" ? aws_launch_template.ec2_with_iam[0].id : aws_launch_template.ec2.id
-}
 
 output "autoscaling_group_name" {
   description = "Name of the Auto Scaling Group (if enabled)"

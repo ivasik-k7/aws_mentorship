@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Server Error | ECS Fargate</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .gradient-bg {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ff0000 100%);
+      }
+      .card-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      }
+      .shake {
+        animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+      }
+      .pulse {
+        animation: pulse 2s infinite;
+      }
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        10%,
+        30%,
+        50%,
+        70%,
+        90% {
+          transform: translateX(-5px);
+        }
+        20%,
+        40%,
+        60%,
+        80% {
+          transform: translateX(5px);
+        }
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .fade-in {
+        animation: fadeIn 1.5s ease-in;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+  <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-4xl w-full fade-in">
+      <div
+        class="bg-white rounded-xl shadow-2xl overflow-hidden card-hover transition-all duration-300"
+      >
+        <div class="p-8">
+          <div class="flex justify-center mb-6">
+            <div class="pulse bg-red-100 rounded-full p-4 shake">
+              <i class="fas fa-exclamation-triangle text-red-500 text-5xl"></i>
+            </div>
+          </div>
+          <h1 class="text-3xl font-bold text-center text-gray-800 mb-4">
+            ⚠️ Server Error (50x)
+          </h1>
+          <p class="text-lg text-center text-gray-600 mb-8">
+            We're experiencing technical difficulties with your
+            <span class="font-semibold text-blue-600">ECS Fargate</span>
+            deployment. Our team has been notified.
+          </p>
+
+          <div class="grid md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-red-50 p-4 rounded-lg">
+              <div class="text-red-500 mb-2">
+                <i class="fas fa-bug text-2xl"></i>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-1">Error Detected</h3>
+              <p class="text-sm text-gray-600">
+                The server encountered an unexpected condition
+              </p>
+            </div>
+            <div class="bg-yellow-50 p-4 rounded-lg">
+              <div class="text-yellow-500 mb-2">
+                <i class="fas fa-tools text-2xl"></i>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-1">Auto-Recovery</h3>
+              <p class="text-sm text-gray-600">
+                ECS is attempting to restart your container
+              </p>
+            </div>
+            <div class="bg-blue-50 p-4 rounded-lg">
+              <div class="text-blue-500 mb-2">
+                <i class="fas fa-history text-2xl"></i>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-1">Recent Changes</h3>
+              <p class="text-sm text-gray-600">Check your last deployment</p>
+            </div>
+          </div>
+
+          <div class="bg-gray-50 p-4 rounded-lg mb-6">
+            <h3 class="font-bold text-gray-800 mb-2 flex items-center">
+              <i class="fas fa-server text-blue-500 mr-2"></i> Service Status
+            </h3>
+            <div class="space-y-2">
+              <div class="flex items-center">
+                <span class="font-medium w-32">ECS Service:</span>
+                <span class="flex-1 flex items-center">
+                  <span class="h-2 w-2 rounded-full bg-red-500 mr-2"></span>
+                  <span class="font-mono bg-gray-100 px-2 py-1 rounded text-sm">
+                    Unhealthy
+                  </span>
+                </span>
+              </div>
+              <div class="flex items-center">
+                <span class="font-medium w-32">Container:</span>
+                <span class="flex-1 flex items-center">
+                  <span
+                    class="h-2 w-2 rounded-full bg-yellow-500 mr-2 animate-pulse"
+                  ></span>
+                  <span class="font-mono bg-gray-100 px-2 py-1 rounded text-sm">
+                    Restarting...
+                  </span>
+                </span>
+              </div>
+              <div class="flex items-center">
+                <span class="font-medium w-32">Last Check:</span>
+                <span
+                  class="font-mono bg-gray-100 px-2 py-1 rounded text-sm flex-1"
+                  id="last-check"
+                >
+                  Just now
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row justify-center gap-4">
+            <button
+              onclick="retryConnection()"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-full transition duration-300 flex items-center justify-center"
+            >
+              <i class="fas fa-redo mr-2"></i> Retry Connection
+            </button>
+            <button
+              onclick="showDetails()"
+              class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-6 rounded-full transition duration-300 flex items-center justify-center"
+            >
+              <i class="fas fa-info-circle mr-2"></i> Technical Details
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-gray-100 px-8 py-4 hidden" id="details-panel">
+          <div class="mb-3">
+            <h4 class="font-bold text-gray-800 mb-1">Error Details:</h4>
+            <div
+              class="bg-black text-green-400 font-mono text-xs p-3 rounded overflow-x-auto"
+            >
+              <div>HTTP 503 - Service Unavailable</div>
+              <div>Container: exited with code 1</div>
+              <div>Timestamp: <span id="error-timestamp"></span></div>
+              <div class="mt-2">Possible causes:</div>
+              <ul class="list-disc list-inside ml-2">
+                <li>Container failed health checks</li>
+                <li>Out of memory error</li>
+                <li>Application startup timeout</li>
+                <li>Missing environment variables</li>
+              </ul>
+            </div>
+          </div>
+          <p class="text-center text-sm text-gray-600">
+            <i class="fas fa-exclamation-triangle mr-1"></i> Check your ECS
+            service logs in AWS Console
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Display current time
+      document.getElementById("error-timestamp").textContent =
+        new Date().toISOString();
+
+      setInterval(() => {
+        const now = new Date();
+        document.getElementById(
+          "last-check"
+        ).textContent = `Last checked: ${now.toLocaleTimeString()}`;
+      }, 10000);
+
+      function retryConnection() {
+        const btn = event.target;
+        btn.innerHTML =
+          '<i class="fas fa-spinner fa-spin mr-2"></i> Retrying...';
+        btn.disabled = true;
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      }
+
+      function showDetails() {
+        const panel = document.getElementById("details-panel");
+        panel.classList.toggle("hidden");
+
+        const btn = event.target;
+        if (panel.classList.contains("hidden")) {
+          btn.innerHTML =
+            '<i class="fas fa-info-circle mr-2"></i> Show Details';
+        } else {
+          btn.innerHTML = '<i class="fas fa-eye-slash mr-2"></i> Hide Details';
+        }
+      }
+    </script>
+  </body>
+</html>

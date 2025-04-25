@@ -74,8 +74,7 @@ module "vpc" {
   private_subnet_cidrs = ["10.0.3.0/24", "10.0.4.0/24"]
   vpc_cidr             = "10.0.0.0/16"
 
-  project_name = "alb-demo"
-  environment  = "dev"
+  identifier = "alb-demo-vpc"
 
   enable_nat_gateway = false
   enable_flow_logs   = false

@@ -58,7 +58,7 @@ variable "ebs_volume_type" {
   default     = "gp3"
 }
 
-variable "default_tags" {
+variable "tags" {
   description = "Default tags to apply to all resources"
   type        = map(string)
   default     = {}

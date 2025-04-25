@@ -15,9 +15,9 @@ variable "domain_name" {
 
 variable "default_tags" {
   default = {
-    Owner   = "Ivan Kovtun"
-    Tier    = "private"
-    Purpose = "demo"
+    owner   = "Ivan Kovtun"
+    tier    = "private"
+    purpose = "demo"
   }
   description = "Default tags for all resources"
 }

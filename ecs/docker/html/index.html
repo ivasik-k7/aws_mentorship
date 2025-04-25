@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ECS Fargate Demo | AWS Free Tier</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .gradient-bg {
+        background: linear-gradient(135deg, #6b73ff 0%, #000dff 100%);
+      }
+      .card-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      }
+      .pulse {
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-4xl w-full">
+      <div
+        class="bg-white rounded-xl shadow-2xl overflow-hidden card-hover transition-all duration-300"
+      >
+        <div class="p-8">
+          <div class="flex justify-center mb-6">
+            <div class="pulse bg-green-100 rounded-full p-4">
+              <i class="fas fa-check-circle text-green-500 text-5xl"></i>
+            </div>
+          </div>
+          <h1 class="text-3xl font-bold text-center text-gray-800 mb-4">
+            🚀 Deployment Successful!
+          </h1>
+          <p class="text-lg text-center text-gray-600 mb-8">
+            Your containerized application is now running on
+            <span class="font-semibold text-blue-600">AWS ECS Fargate</span>
+            with images stored in
+            <span class="font-semibold text-orange-500">ECR</span>.
+          </p>
+
+          <div class="grid md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-blue-50 p-4 rounded-lg">
+              <div class="text-blue-500 mb-2">
+                <i class="fas fa-server text-2xl"></i>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-1">ECS Fargate</h3>
+              <p class="text-sm text-gray-600">
+                Serverless containers running in AWS
+              </p>
+            </div>
+            <div class="bg-orange-50 p-4 rounded-lg">
+              <div class="text-orange-500 mb-2">
+                <i class="fas fa-box-open text-2xl"></i>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-1">ECR</h3>
+              <p class="text-sm text-gray-600">
+                Secure container registry service
+              </p>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg">
+              <div class="text-green-500 mb-2">
+                <i class="fas fa-tag text-2xl"></i>
+              </div>
+              <h3 class="font-bold text-gray-800 mb-1">Free Tier</h3>
+              <p class="text-sm text-gray-600">Cost-optimized deployment</p>
+            </div>
+          </div>
+
+          <div class="bg-gray-50 p-4 rounded-lg mb-6">
+            <h3 class="font-bold text-gray-800 mb-2 flex items-center">
+              <i class="fas fa-info-circle text-blue-500 mr-2"></i> Deployment
+              Details
+            </h3>
+            <div class="space-y-2">
+              <p class="text-sm">
+                <span class="font-medium">Container ID:</span>
+                <span class="font-mono bg-gray-100 px-2 py-1 rounded"
+                  >{{CONTAINER_ID}}</span
+                >
+              </p>
+              <p class="text-sm">
+                <span class="font-medium">Image:</span>
+                <span class="font-mono bg-gray-100 px-2 py-1 rounded"
+                  >{{ECR_IMAGE_URL}}</span
+                >
+              </p>
+              <p class="text-sm">
+                <span class="font-medium">Launch Type:</span>
+                <span class="font-mono bg-gray-100 px-2 py-1 rounded"
+                  >FARGATE</span
+                >
+              </p>
+            </div>
+          </div>
+
+          <div class="flex justify-center">
+            <button
+              onclick="refreshStats()"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-full transition duration-300 flex items-center"
+            >
+              <i class="fas fa-sync-alt mr-2"></i> Refresh Status
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-gray-100 px-8 py-4">
+          <p class="text-center text-sm text-gray-600">
+            <i class="fas fa-clock mr-1"></i> Deployed at:
+            <span id="deploy-time"></span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Display current deployment time
+      document.getElementById("deploy-time").textContent =
+        new Date().toLocaleString();
+
+      // Simulate stats refresh
+      function refreshStats() {
+        const btn = event.target;
+        btn.innerHTML =
+          '<i class="fas fa-spinner fa-spin mr-2"></i> Refreshing...';
+        btn.disabled = true;
+
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fas fa-check-circle mr-2"></i> Refreshed!';
+          setTimeout(() => {
+            btn.innerHTML =
+              '<i class="fas fa-sync-alt mr-2"></i> Refresh Status';
+            btn.disabled = false;
+          }, 1500);
+        }, 1000);
+      }
+    </script>
+  </body>
+</html>

@@ -514,10 +514,10 @@ resource "aws_elb" "web" {
 module "vpc" {
   source = "../modules/vpc"
 
-  project_name       = "${var.environment}-vpc-${data.aws_caller_identity.current.account_id}"
-  availability_zones = data.aws_availability_zones.this.names
-  environment        = var.environment
 
+  identifier = "${var.environment}-vpc-${data.aws_caller_identity.current.account_id}"
+
+  availability_zones = data.aws_availability_zones.this.names
 
   vpc_cidr             = "10.0.0.0/16"
   public_subnet_cidrs  = ["10.0.2.0/24", "10.0.3.0/24", ]
