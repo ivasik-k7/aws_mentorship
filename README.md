@@ -115,7 +115,3 @@ Suggestions for future chapters:
 - **AWS Errors**: Verify your credentials in `~/.aws/credentials` and permissions in your AWS account.
 - **Terraform Issues**: Ensure the correct version with `terraform version`.
 - **Resource Conflicts**: Check the AWS console for existing resources with the same names or CIDR blocks.
-
-## Contributions
-
-This repository is a work in progress. Feedback and suggestions from mentors and peers are encouraged to improve the content and structure.
